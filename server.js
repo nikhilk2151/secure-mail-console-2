@@ -15,24 +15,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const activeSessions = {};
 
-// Create Gmail transporter
+
+// ✅ Gmail Transporter (PORT 587 FIX)
 function createTransporter(email, appPassword) {
+
     return nodemailer.createTransport({
         host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
+        port: 587,          // changed
+        secure: false,      // changed
+        requireTLS: true,   // added
+
         auth: {
             user: email,
             pass: appPassword
         },
+
         tls: {
             rejectUnauthorized: false
         }
     });
+
 }
+
 
 // Verify SMTP credentials
 app.post('/api/verify', async (req, res) => {
+
     const { email, appPassword } = req.body;
 
     if (!email || !appPassword) {
@@ -43,6 +51,7 @@ app.post('/api/verify', async (req, res) => {
     }
 
     try {
+
         const transporter = createTransporter(email, appPassword);
         await transporter.verify();
 
@@ -52,14 +61,18 @@ app.post('/api/verify', async (req, res) => {
         });
 
     } catch (error) {
+
         console.error("SMTP Verification Error:", error);
 
         res.status(401).json({
             success: false,
             message: error.message
         });
+
     }
+
 });
+
 
 // Start sending emails
 app.post('/api/send', async (req, res) => {
@@ -89,7 +102,9 @@ app.post('/api/send', async (req, res) => {
     });
 
     sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients);
+
 });
+
 
 // Stop sending emails
 app.post('/api/stop', (req, res) => {
@@ -97,6 +112,7 @@ app.post('/api/stop', (req, res) => {
     const { socketId } = req.body;
 
     if (activeSessions[socketId]) {
+
         activeSessions[socketId].stopRequested = true;
 
         res.json({
@@ -110,8 +126,12 @@ app.post('/api/stop', (req, res) => {
             success: false,
             message: 'No active session found'
         });
+
     }
+
 });
+
+
 
 async function sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients) {
 
@@ -124,8 +144,10 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
     for (let i = 0; i < total; i++) {
 
         if (activeSessions[socketId] && activeSessions[socketId].stopRequested) {
+
             io.to(socketId).emit('stopped', { sentCount, failedCount, total });
             break;
+
         }
 
         const recipient = recipients[i];
@@ -156,14 +178,24 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
         });
 
         await new Promise(resolve => setTimeout(resolve, 1000));
+
     }
 
     if (activeSessions[socketId] && !activeSessions[socketId].stopRequested) {
-        io.to(socketId).emit('complete', { sentCount, failedCount, total });
+
+        io.to(socketId).emit('complete', {
+            sentCount,
+            failedCount,
+            total
+        });
+
     }
 
     delete activeSessions[socketId];
+
 }
+
+
 
 io.on('connection', (socket) => {
 
@@ -180,8 +212,11 @@ io.on('connection', (socket) => {
         if (activeSessions[socket.id]) {
             activeSessions[socket.id].stopRequested = true;
         }
+
     });
+
 });
+
 
 const PORT = process.env.PORT || 3000;
 
