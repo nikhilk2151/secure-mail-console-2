@@ -9,21 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- DOM Elements ---
-    // Sections
-    const loginSection = document.getElementById('login-section');
-    const dashboardSection = document.getElementById('dashboard-section');
-
-    // Login Form
-    const loginForm = document.getElementById('login-form');
-    const loginEmail = document.getElementById('login-email');
-    const loginPassword = document.getElementById('login-password');
-    const togglePasswordBtn = document.getElementById('toggle-password');
-    const loginError = document.getElementById('login-error');
-    const loginBtn = document.getElementById('login-btn');
 
     // Dashboard Items
     const dashboardEmail = document.getElementById('dashboard-email');
-    const logoutBtn = document.getElementById('logout-btn');
+    const dashboardPassword = document.getElementById('dashboard-password');
+    const togglePasswordBtn = document.getElementById('toggle-password');
     
     // Compose Form
     const senderName = document.getElementById('sender-name');
@@ -48,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
 
     // State 
-    let currentCredentials = null;
     let extractedEmails = [];
     let isSending = false;
 
@@ -56,60 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Toggle Password Visibility
     togglePasswordBtn.addEventListener('click', () => {
-        const type = loginPassword.getAttribute('type') === 'password' ? 'text' : 'password';
-        loginPassword.setAttribute('type', type);
+        const type = dashboardPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+        dashboardPassword.setAttribute('type', type);
         togglePasswordBtn.innerHTML = type === 'password' ? '<i class="fa-regular fa-eye"></i>' : '<i class="fa-regular fa-eye-slash"></i>';
-    });
-
-    // Handle Login Validation
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const email = loginEmail.value.trim();
-        const password = loginPassword.value.trim();
-
-        if (!email || !password) return;
-
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
-        loginError.classList.add('hidden');
-
-        try {
-            const response = await fetch('/api/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, appPassword: password })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Success
-                currentCredentials = { email, password };
-                dashboardEmail.value = email;
-                showDashboard();
-            } else {
-                // Error
-                loginError.classList.remove('hidden');
-                loginError.querySelector('span').textContent = result.message || 'Invalid credentials';
-            }
-        } catch (error) {
-            console.error('Error verifying:', error);
-            loginError.classList.remove('hidden');
-            loginError.querySelector('span').textContent = 'Server error. Please try again later.';
-        } finally {
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login & Verify';
-        }
-    });
-
-    // Logout
-    logoutBtn.addEventListener('click', () => {
-        currentCredentials = null;
-        loginPassword.value = '';
-        loginSection.classList.remove('hidden');
-        dashboardSection.classList.add('hidden');
-        resetDashboard();
     });
 
     // Process pasted emails
@@ -142,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isSending) return;
 
         // Validate
+        if (!dashboardEmail.value.trim()) return alert('Please enter your Gmail.');
+        if (!dashboardPassword.value.trim()) return alert('Please enter your App Password.');
         if (!senderName.value.trim()) return alert('Please enter a Sender Name.');
         if (!subject.value.trim()) return alert('Please enter a Subject.');
         if (!messageBody.value.trim()) return alert('Please enter a Message Body.');
@@ -149,18 +89,39 @@ document.addEventListener('DOMContentLoaded', () => {
             emailValidationError.classList.remove('hidden');
             return;
         }
+        
+        const emailVal = dashboardEmail.value.trim();
+        const appPasswordVal = dashboardPassword.value.trim();
 
-        const payload = {
-            socketId: clientSocketId,
-            email: currentCredentials.email,
-            appPassword: currentCredentials.password,
-            senderName: senderName.value.trim(),
-            subject: subject.value.trim(),
-            messageBody: messageBody.value.trim(),
-            recipients: extractedEmails
-        };
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
 
         try {
+            // Verify credentials first
+            const verifyResponse = await fetch('/api/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailVal, appPassword: appPasswordVal })
+            });
+            const verifyResult = await verifyResponse.json();
+            
+            if (!verifyResult.success) {
+                alert(verifyResult.message || 'Invalid credentials');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All';
+                return;
+            }
+
+            const payload = {
+                socketId: clientSocketId,
+                email: emailVal,
+                appPassword: appPasswordVal,
+                senderName: senderName.value.trim(),
+                subject: subject.value.trim(),
+                messageBody: messageBody.value.trim(),
+                recipients: extractedEmails
+            };
+
             const response = await fetch('/api/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -177,6 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Send error:', error);
             alert('Failed to connect to server.');
+        } finally {
+            if (!isSending) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All';
+            }
         }
     });
 
@@ -220,12 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Helper functions
-    function showDashboard() {
-        loginSection.classList.add('hidden');
-        dashboardSection.classList.remove('hidden');
-    }
-
     function resetDashboard() {
+        dashboardEmail.value = '';
+        dashboardPassword.value = '';
         senderName.value = '';
         subject.value = '';
         messageBody.value = '';
@@ -287,10 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setInputState(disabled) {
+        dashboardEmail.disabled = disabled;
+        dashboardPassword.disabled = disabled;
         senderName.disabled = disabled;
         subject.disabled = disabled;
         messageBody.disabled = disabled;
         recipientsInput.disabled = disabled;
-        logoutBtn.disabled = disabled;
     }
 });

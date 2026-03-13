@@ -18,43 +18,10 @@
             <h1><i class="fa-solid fa-shield-halved"></i> Secure Mail Console</h1>
         </header>
 
-        <!-- Login Section -->
-        <section id="login-section" class="card fade-in">
-            <div class="card-header">
-                <h2>SMTP Authentication</h2>
-                <p>Login securely with your Gmail and App Password</p>
-            </div>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="login-email"><i class="fa-regular fa-envelope"></i> Gmail Address</label>
-                    <input type="email" id="login-email" placeholder="you@gmail.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="login-password"><i class="fa-solid fa-key"></i> App Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="login-password" placeholder="16-character app password" required>
-                        <button type="button" id="toggle-password" class="icon-button"><i class="fa-regular fa-eye"></i></button>
-                    </div>
-                </div>
-                <div id="login-error" class="error-message hidden">
-                    <i class="fa-solid fa-circle-exclamation"></i> <span>Invalid credentials.</span>
-                </div>
-                <button type="submit" id="login-btn" class="btn btn-primary btn-block">
-                    <i class="fa-solid fa-right-to-bracket"></i> Login & Verify
-                </button>
-                <div class="help-text">
-                    <a href="https://support.google.com/accounts/answer/185833" target="_blank">How to get an App Password?</a>
-                </div>
-            </form>
-        </section>
-
         <!-- Dashboard Section -->
-        <section id="dashboard-section" class="hidden">
+        <section id="dashboard-section">
             <div class="dashboard-header fade-in">
                 <h2><i class="fa-solid fa-paper-plane"></i> Bulk Email Sender</h2>
-                <button type="button" id="logout-btn" class="btn btn-outline btn-sm">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </button>
             </div>
 
             <div class="dashboard-grid">
@@ -64,17 +31,26 @@
                     <form id="compose-form">
                         <div class="form-row">
                             <div class="form-group half">
+                                <label for="dashboard-email">Your Gmail</label>
+                                <input type="email" id="dashboard-email" placeholder="you@gmail.com" required>
+                            </div>
+                            <div class="form-group half">
+                                <label for="dashboard-password">App Password</label>
+                                <div class="password-wrapper">
+                                    <input type="password" id="dashboard-password" placeholder="16-char app password" required>
+                                    <button type="button" id="toggle-password" class="icon-button"><i class="fa-regular fa-eye"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
                                 <label for="sender-name">Sender Name</label>
                                 <input type="text" id="sender-name" placeholder="E.g., John Doe" required>
                             </div>
                             <div class="form-group half">
-                                <label for="dashboard-email">Your Gmail</label>
-                                <input type="email" id="dashboard-email" readonly class="readonly-input">
+                                <label for="subject">Email Subject</label>
+                                <input type="text" id="subject" placeholder="Enter subject line..." required>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="subject">Email Subject</label>
-                            <input type="text" id="subject" placeholder="Enter subject line..." required>
                         </div>
                         <div class="form-group flex-grow">
                             <label for="message-body">Message Body (Plain Text)</label>
