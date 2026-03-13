@@ -7,20 +7,24 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.static(path.join(__dirname, "public")));
 
 const activeSessions = {};
 
+/* ---------------- SMTP TRANSPORTER ---------------- */
 
-// ✅ CREATE TRANSPORTER USING IPV4 SMTP
 function createTransporter(email, appPassword) {
-
   return nodemailer.createTransport({
-
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
@@ -34,25 +38,25 @@ function createTransporter(email, appPassword) {
       rejectUnauthorized: false
     },
 
-    family: 4
+    family: 4,
 
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100
   });
-
 }
 
+/* ---------------- VERIFY SMTP ---------------- */
 
-// Verify SMTP credentials
-app.post('/api/verify', async (req, res) => {
+app.post("/api/verify", async (req, res) => {
 
   const { email, appPassword } = req.body;
 
   if (!email || !appPassword) {
-
     return res.status(400).json({
       success: false,
-      message: 'Email and App Password required'
+      message: "Email and App Password required"
     });
-
   }
 
   try {
@@ -63,12 +67,12 @@ app.post('/api/verify', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'SMTP credentials verified successfully'
+      message: "SMTP verified successfully"
     });
 
   } catch (error) {
 
-    console.error("SMTP Verification Error:", error);
+    console.error("SMTP Verify Error:", error);
 
     res.status(401).json({
       success: false,
@@ -79,9 +83,9 @@ app.post('/api/verify', async (req, res) => {
 
 });
 
+/* ---------------- START SENDING ---------------- */
 
-// Start sending emails
-app.post('/api/send', async (req, res) => {
+app.post("/api/send", async (req, res) => {
 
   const {
     socketId,
@@ -93,11 +97,11 @@ app.post('/api/send', async (req, res) => {
     recipients
   } = req.body;
 
-  if (!socketId || !email || !appPassword || !recipients || recipients.length === 0) {
+  if (!socketId || !email || !appPassword || !recipients?.length) {
 
     return res.status(400).json({
       success: false,
-      message: 'Missing required fields'
+      message: "Missing required fields"
     });
 
   }
@@ -106,16 +110,16 @@ app.post('/api/send', async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Sending process started'
+    message: "Sending started"
   });
 
   sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients);
 
 });
 
+/* ---------------- STOP PROCESS ---------------- */
 
-// Stop sending emails
-app.post('/api/stop', (req, res) => {
+app.post("/api/stop", (req, res) => {
 
   const { socketId } = req.body;
 
@@ -125,22 +129,22 @@ app.post('/api/stop', (req, res) => {
 
     res.json({
       success: true,
-      message: 'Stop requested'
+      message: "Stopping email sending"
     });
 
   } else {
 
     res.status(404).json({
       success: false,
-      message: 'No active session found'
+      message: "Session not found"
     });
 
   }
 
 });
 
+/* ---------------- EMAIL SENDER ---------------- */
 
-// Send Emails Function
 async function sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients) {
 
   const transporter = createTransporter(email, appPassword);
@@ -151,11 +155,15 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
 
   for (let i = 0; i < total; i++) {
 
-    if (activeSessions[socketId] && activeSessions[socketId].stopRequested) {
+    if (activeSessions[socketId]?.stopRequested) {
 
-      io.to(socketId).emit('stopped', { sentCount, failedCount, total });
+      io.to(socketId).emit("stopped", {
+        sentCount,
+        failedCount,
+        total
+      });
+
       break;
-
     }
 
     const recipient = recipients[i];
@@ -166,19 +174,20 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
         from: `"${senderName}" <${email}>`,
         to: recipient,
         subject: subject,
-        text: messageBody
+        text: messageBody,
+        html: `<p>${messageBody}</p>`
       });
 
       sentCount++;
 
     } catch (error) {
 
-      console.error(`Failed to send to ${recipient}`, error);
+      console.error("Email failed:", recipient, error);
       failedCount++;
 
     }
 
-    io.to(socketId).emit('progress', {
+    io.to(socketId).emit("progress", {
       sentCount,
       failedCount,
       total,
@@ -189,9 +198,9 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
 
   }
 
-  if (activeSessions[socketId] && !activeSessions[socketId].stopRequested) {
+  if (!activeSessions[socketId]?.stopRequested) {
 
-    io.to(socketId).emit('complete', {
+    io.to(socketId).emit("complete", {
       sentCount,
       failedCount,
       total
@@ -203,19 +212,19 @@ async function sendEmails(socketId, email, appPassword, senderName, subject, mes
 
 }
 
+/* ---------------- SOCKET CONNECTION ---------------- */
 
-// Socket connection
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
 
-  console.log('Client connected:', socket.id);
+  console.log("Client connected:", socket.id);
 
-  socket.emit('connected', {
+  socket.emit("connected", {
     socketId: socket.id
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
 
-    console.log('Client disconnected:', socket.id);
+    console.log("Client disconnected:", socket.id);
 
     if (activeSessions[socket.id]) {
       activeSessions[socket.id].stopRequested = true;
@@ -225,9 +234,10 @@ io.on('connection', (socket) => {
 
 });
 
+/* ---------------- START SERVER ---------------- */
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
