@@ -1,19 +1,18 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const nodemailer = require('nodemailer');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import nodemailer from 'nodemailer';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
+// Mock Turnstile secret for local dev if needed
+const TURNSTILE_SECRET = '1x0000000000000000000000000000000AA';
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -50,19 +49,17 @@ function createTransporter(email, appPassword) {
 
 app.post("/api/verify", async (req, res) => {
 
-  const { email, appPassword } = req.body;
+  const { email, appPassword, cfToken } = req.body;
 
-  if (!email || !appPassword) {
+  if (!email || !appPassword || !cfToken) {
     return res.status(400).json({
       success: false,
-      message: "Email and App Password required"
+      message: "Email, App Password, and Spam Check required"
     });
   }
 
   try {
-
     const transporter = createTransporter(email, appPassword);
-
     await transporter.verify();
 
     res.json({
@@ -71,168 +68,76 @@ app.post("/api/verify", async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("SMTP Verify Error:", error);
-
     res.status(401).json({
       success: false,
       message: error.message
     });
-
   }
-
 });
 
-/* ---------------- START SENDING ---------------- */
+/* ---------------- SEND BATCH ---------------- */
 
-app.post("/api/send", async (req, res) => {
+app.post("/api/send-batch", async (req, res) => {
 
-  const {
-    socketId,
-    email,
-    appPassword,
-    senderName,
-    subject,
-    messageBody,
-    recipients
-  } = req.body;
+  const { email, appPassword, senderName, subject, messageBody, recipients, cfToken } = req.body;
 
-  if (!socketId || !email || !appPassword || !recipients?.length) {
-
+  if (!email || !appPassword || !recipients?.length) {
     return res.status(400).json({
       success: false,
       message: "Missing required fields"
     });
-
   }
 
-  activeSessions[socketId] = { stopRequested: false };
+  if (recipients.length > 10) {
+    return res.status(400).json({
+        success: false,
+        message: "Batch too large. Max 10."
+    });
+  }
+
+  const transporter = createTransporter(email, appPassword);
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipient of recipients) {
+      if (activeSessions['global_stop']) break; // Simple stop flag for local dev
+
+      try {
+          await transporter.sendMail({
+              from: `"${senderName}" <${email}>`,
+              to: recipient,
+              subject: subject,
+              text: messageBody,
+              html: `<p>${messageBody}</p>`
+          });
+          sent++;
+      } catch (error) {
+          console.error("Email failed:", recipient, error);
+          failed++;
+      }
+      // Small artificial delay
+      await new Promise(r => setTimeout(r, 500));
+  }
 
   res.json({
-    success: true,
-    message: "Sending started"
+      success: true,
+      results: { sent, failed }
   });
-
-  sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients);
-
 });
 
 /* ---------------- STOP PROCESS ---------------- */
 
 app.post("/api/stop", (req, res) => {
-
-  const { socketId } = req.body;
-
-  if (activeSessions[socketId]) {
-
-    activeSessions[socketId].stopRequested = true;
-
-    res.json({
-      success: true,
-      message: "Stopping email sending"
-    });
-
-  } else {
-
-    res.status(404).json({
-      success: false,
-      message: "Session not found"
-    });
-
-  }
-
+  activeSessions['global_stop'] = true;
+  res.json({ success: true, message: "Stopping future batches." });
+  
+  // reset after a few seconds so next send works
+  setTimeout(() => { activeSessions['global_stop'] = false; }, 5000);
 });
 
-/* ---------------- EMAIL SENDER ---------------- */
-
-async function sendEmails(socketId, email, appPassword, senderName, subject, messageBody, recipients) {
-
-  const transporter = createTransporter(email, appPassword);
-
-  let sentCount = 0;
-  let failedCount = 0;
-  const total = recipients.length;
-
-  for (let i = 0; i < total; i++) {
-
-    if (activeSessions[socketId]?.stopRequested) {
-
-      io.to(socketId).emit("stopped", {
-        sentCount,
-        failedCount,
-        total
-      });
-
-      break;
-    }
-
-    const recipient = recipients[i];
-
-    try {
-
-      await transporter.sendMail({
-        from: `"${senderName}" <${email}>`,
-        to: recipient,
-        subject: subject,
-        text: messageBody,
-        html: `<p>${messageBody}</p>`
-      });
-
-      sentCount++;
-
-    } catch (error) {
-
-      console.error("Email failed:", recipient, error);
-      failedCount++;
-
-    }
-
-    io.to(socketId).emit("progress", {
-      sentCount,
-      failedCount,
-      total,
-      currentEmail: recipient
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-  }
-
-  if (!activeSessions[socketId]?.stopRequested) {
-
-    io.to(socketId).emit("complete", {
-      sentCount,
-      failedCount,
-      total
-    });
-
-  }
-
-  delete activeSessions[socketId];
-
-}
-
-/* ---------------- SOCKET CONNECTION ---------------- */
-
-io.on("connection", (socket) => {
-
-  console.log("Client connected:", socket.id);
-
-  socket.emit("connected", {
-    socketId: socket.id
-  });
-
-  socket.on("disconnect", () => {
-
-    console.log("Client disconnected:", socket.id);
-
-    if (activeSessions[socket.id]) {
-      activeSessions[socket.id].stopRequested = true;
-    }
-
-  });
-
-});
+// Legacy send function removed (now fully managed by REST batching)
+// Socket connection removed
 
 /* ---------------- START SERVER ---------------- */
 

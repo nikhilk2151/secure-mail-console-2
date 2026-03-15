@@ -2,15 +2,13 @@
   "name": "secure-mail-console",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "worker.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
+    "deploy": "wrangler deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1008.0",
     "cors": "^2.8.6",
@@ -18,5 +16,8 @@
     "express": "^5.2.1",
     "nodemailer": "^8.0.1",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.60.0"
   }
 }

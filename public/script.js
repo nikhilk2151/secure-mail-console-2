@@ -1,13 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Connect Socket.IO
-    const socket = io();
-    let clientSocketId = null;
-
-    socket.on('connected', (data) => {
-        clientSocketId = data.socketId;
-        console.log('Connected with Socket ID:', clientSocketId);
-    });
-
     // --- DOM Elements ---
 
     // Dashboard Items
@@ -40,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // State 
     let extractedEmails = [];
     let isSending = false;
+    let stopRequested = false;
 
     // --- Events --- //
 
@@ -89,6 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
             emailValidationError.classList.remove('hidden');
             return;
         }
+
+        // Turnstile validate
+        const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        if (!turnstileResponse) {
+            alert('Please complete the spam protection check.');
+            return;
+        }
         
         const emailVal = dashboardEmail.value.trim();
         const appPasswordVal = dashboardPassword.value.trim();
@@ -98,107 +97,116 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Verify credentials first
+            const verifyPayload = { 
+                email: emailVal, 
+                appPassword: appPasswordVal,
+                cfToken: turnstileResponse 
+            };
+            
             const verifyResponse = await fetch('/api/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: emailVal, appPassword: appPasswordVal })
+                body: JSON.stringify(verifyPayload)
             });
             const verifyResult = await verifyResponse.json();
             
             if (!verifyResult.success) {
-                alert(verifyResult.message || 'Invalid credentials');
+                alert(verifyResult.message || 'Invalid credentials or spam check failed.');
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All';
+                try { turnstile.reset(); } catch(e){} // reset captcha on fail
                 return;
             }
 
-            const payload = {
-                socketId: clientSocketId,
-                email: emailVal,
-                appPassword: appPasswordVal,
-                senderName: senderName.value.trim(),
-                subject: subject.value.trim(),
-                messageBody: messageBody.value.trim(),
-                recipients: extractedEmails
-            };
-
-            const response = await fetch('/api/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
+            // Start sending batches
+            startSendingUI(extractedEmails.length);
             
-            if (result.success) {
-                startSendingUI(extractedEmails.length);
-            } else {
-                alert(result.message || 'Failed to start sending.');
+            // Loop and chunk emails to prevent server timeouts
+            // Chunk size of 3 means the worker will only process 3 at a time in the background.
+            // Adjust chunk size if Worker has large CPU limits, 3 is very safe.
+            const chunkSize = 3; 
+            let sentCount = 0;
+            let failedCount = 0;
+            
+            for (let i = 0; i < extractedEmails.length; i += chunkSize) {
+                if (stopRequested) break;
+                
+                const chunk = extractedEmails.slice(i, i + chunkSize);
+                
+                // Show current status
+                updateProgressUI(sentCount, failedCount, extractedEmails.length, `Sending to batch ${Math.floor(i/chunkSize) + 1}...`);
+                
+                try {
+                    const payload = {
+                        email: emailVal,
+                        appPassword: appPasswordVal,
+                        senderName: senderName.value.trim(),
+                        subject: subject.value.trim(),
+                        messageBody: messageBody.value.trim(),
+                        recipients: chunk,
+                        cfToken: turnstileResponse // reuse token or require fresh one (backend might require bypass once verified)
+                    };
+
+                    const response = await fetch('/api/send-batch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        sentCount += result.results.sent;
+                        failedCount += result.results.failed;
+                    } else {
+                        failedCount += chunk.length;
+                    }
+
+                } catch (err) {
+                    console.error('Batch failed:', err);
+                    failedCount += chunk.length;
+                }
+                
+                // Update final progress for this batch
+                updateProgressUI(sentCount, failedCount, extractedEmails.length);
+                
+                // Small artificial delay to respect rate limits
+                await new Promise(res => setTimeout(res, 1000));
             }
+            
+            isSending = false;
+            if (stopRequested) {
+                statusIcon.className = 'fa-solid fa-circle-stop text-danger';
+                statusText.textContent = 'Stopped by user.';
+            } else {
+                statusIcon.className = 'fa-solid fa-circle-check text-success';
+                statusText.textContent = 'Completed successfully!';
+            }
+            finishSendingUI();
+            
         } catch (error) {
             console.error('Send error:', error);
             alert('Failed to connect to server.');
+            isSending = false;
+            finishSendingUI();
         } finally {
             if (!isSending) {
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All';
             }
+            try { turnstile.reset(); } catch(e){} // Reset token when done
         }
     });
 
     // Handle Stop
-    stopBtn.addEventListener('click', async () => {
-        try {
-            await fetch('/api/stop', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ socketId: clientSocketId })
-            });
-            
-            statusIcon.className = 'fa-solid fa-spinner fa-spin text-warning';
-            statusText.textContent = 'Stopping...';
-            stopBtn.disabled = true;
-        } catch (error) {
-            console.error('Stop error:', error);
-        }
-    });
-
-    // Socket Events (Progress Tracking)
-    socket.on('progress', (data) => {
-        if (!isSending) return;
-        updateProgressUI(data.sentCount, data.failedCount, data.total, data.currentEmail);
-    });
-
-    socket.on('complete', (data) => {
-        isSending = false;
-        updateProgressUI(data.sentCount, data.failedCount, data.total);
-        statusIcon.className = 'fa-solid fa-circle-check text-success';
-        statusText.textContent = 'Completed successfully!';
-        finishSendingUI();
-    });
-
-    socket.on('stopped', (data) => {
-        isSending = false;
-        updateProgressUI(data.sentCount, data.failedCount, data.total);
-        statusIcon.className = 'fa-solid fa-circle-stop text-danger';
-        statusText.textContent = 'Stopped by user.';
-        finishSendingUI();
+    stopBtn.addEventListener('click', () => {
+        stopRequested = true;
+        statusIcon.className = 'fa-solid fa-spinner fa-spin text-warning';
+        statusText.textContent = 'Stopping... waiting for current batch...';
+        stopBtn.disabled = true;
     });
 
     // Helper functions
-    function resetDashboard() {
-        dashboardEmail.value = '';
-        dashboardPassword.value = '';
-        senderName.value = '';
-        subject.value = '';
-        messageBody.value = '';
-        recipientsInput.value = '';
-        extractedEmails = [];
-        detectedCount.textContent = '0 found';
-        emailValidationError.classList.add('hidden');
-        resetProgressUI();
-    }
-
     function resetProgressUI() {
         statTotal.textContent = '0';
         statSent.textContent = '0';
@@ -211,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startSendingUI(total) {
         isSending = true;
+        stopRequested = false;
         statTotal.textContent = total;
         statSent.textContent = '0';
         statFailed.textContent = '0';
@@ -228,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setInputState(true);
     }
 
-    function updateProgressUI(sentCount, failedCount, total, currentEmail) {
+    function updateProgressUI(sentCount, failedCount, total, customText) {
         statSent.textContent = sentCount;
         statFailed.textContent = failedCount;
         
@@ -238,8 +247,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const percentage = Math.round(((sentCount + failedCount) / total) * 100);
         progressBar.style.width = `${percentage}%`;
 
-        if (currentEmail && isSending) {
-            statusText.textContent = `Sending to: ${currentEmail}`;
+        if (customText && isSending && !stopRequested) {
+            statusText.textContent = customText;
         }
     }
 

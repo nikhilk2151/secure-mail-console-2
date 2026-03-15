@@ -8,13 +8,13 @@ This tool provides a simple interface for sending emails to multiple recipients 
 ## 🚀 Features
 
 * Send emails using **Gmail SMTP**
-* **Bulk email sending**
-* Real-time sending status using **Socket.IO**
-* Simple and clean **web interface**
+* **Bulk email sending** with background batching
+* Progress tracking via HTTP chunking
+* Built-in **Spam Protection** (Cloudflare Turnstile)
 * Supports **HTML email content**
-* Secure backend with **Node.js**
+* Secure, Serverless backend via **Cloudflare Workers**
 * Cross-origin support using **CORS**
-* Easy deployment on **VPS / cloud servers**
+* Ready to deploy globally on **Cloudflare**
 
 ---
 
@@ -28,10 +28,8 @@ This tool provides a simple interface for sending emails to multiple recipients 
 
 **Backend**
 
-* Node.js
-* Express.js
-* Socket.IO
-* Nodemailer
+* Cloudflare Workers (Serverless)
+* `cloudflare:sockets` based SMTP Client
 
 **Email Service**
 
@@ -44,12 +42,13 @@ This tool provides a simple interface for sending emails to multiple recipients 
 ```
 secure-mail-console/
 │
-├── public/            # Frontend files
+├── public/            # Frontend files (HTML, CSS, JS)
 │   ├── index.html
 │   ├── style.css
 │   └── script.js
 │
-├── server.js          # Main backend server
+├── worker.js          # Cloudflare Worker Backend (SMTP & Anti-Spam)
+├── wrangler.json      # Cloudflare deployment configuration
 ├── package.json       # Project dependencies
 └── README.md
 ```
@@ -78,67 +77,40 @@ npm install
 
 ---
 
-## ▶️ Run the Application
+## ▶️ Run the Application (Locally)
 
-Start the server using:
-
-```bash
-node server.js
-```
-
-or
+To test the application locally with Cloudflare's runtime, use Wrangler:
 
 ```bash
-npm start
+npx wrangler dev
 ```
 
-The server will start on:
-
-```
-http://localhost:3000
-```
-
-Open this URL in your browser.
+The app will become available at `http://localhost:8787`.
 
 ---
 
-## 📧 SMTP Configuration
+## 📧 Anti-Spam & Turnstile
 
-Edit the SMTP configuration in **server.js**
+This application uses **Cloudflare Turnstile** to prevent spam and automated bots from abusing your bulk email console.
+By default, a test sitekey is provided.
 
-Example configuration:
-
-```javascript
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "your-email@gmail.com",
-    pass: "your-app-password"
-  }
-});
-```
-
-⚠️ **Important:**
-Use a **Gmail App Password**, not your normal Gmail password.
+For production:
+1. Get a sitekey and secret from the [Cloudflare Dashboard](https://dash.cloudflare.com/?to=/:account/turnstile).
+2. Update `data-sitekey` in `public/index.html`.
+3. Update `TURNSTILE_SECRET` in `worker.js`.
 
 ---
 
 ## 🌐 Deployment
 
-You can deploy this project on:
-
-* Render
-* Railway
-* VPS Server
-* DigitalOcean
-* AWS EC2
-
-For production deployment:
+This project is now designed as a **Cloudflare Worker with Static Assets**. You can deploy the frontend and backend globally to Cloudflare with a single command.
 
 ```bash
-npm install pm2 -g
-pm2 start server.js
+npm install -g wrangler
+wrangler deploy
 ```
+
+This will upload your static files and deploy the worker API seamlessly.
 
 ---
 

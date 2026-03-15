@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header -->
@@ -37,8 +39,10 @@
                             <div class="form-group half">
                                 <label for="dashboard-password">App Password</label>
                                 <div class="password-wrapper">
-                                    <input type="password" id="dashboard-password" placeholder="16-char app password" required>
-                                    <button type="button" id="toggle-password" class="icon-button"><i class="fa-regular fa-eye"></i></button>
+                                    <input type="password" id="dashboard-password" placeholder="16-char app password"
+                                        required>
+                                    <button type="button" id="toggle-password" class="icon-button"><i
+                                            class="fa-regular fa-eye"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -56,6 +60,12 @@
                             <label for="message-body">Message Body (Plain Text)</label>
                             <textarea id="message-body" placeholder="Write your email here..." required></textarea>
                         </div>
+                        
+                        <!-- Anti Spam Turnstile -->
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label><i class="fa-solid fa-shield-cat"></i> Spam Protection</label>
+                            <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="light"></div>
+                        </div>
                     </form>
                 </div>
 
@@ -68,7 +78,8 @@
                         </div>
                         <p class="help-subtext">Paste emails (comma separated, new lines, or Excel copy)</p>
                         <div class="form-group flex-grow">
-                            <textarea id="recipients-input" placeholder="john@example.com&#10;jane@example.com"></textarea>
+                            <textarea id="recipients-input"
+                                placeholder="john@example.com&#10;jane@example.com"></textarea>
                         </div>
                         <div id="email-validation-error" class="error-message hidden">
                             <i class="fa-solid fa-triangle-exclamation"></i> <span>Please enter valid recipients.</span>
@@ -78,7 +89,7 @@
                     <!-- Progress Monitor Card -->
                     <div class="card progress-card fade-in delay-3">
                         <h3><i class="fa-solid fa-chart-pie"></i> Progress Monitor</h3>
-                        
+
                         <div class="stats-grid">
                             <div class="stat-box neutral">
                                 <span class="stat-label">Total</span>
@@ -101,7 +112,7 @@
                         <div class="progress-bar-container">
                             <div class="progress-bar" id="progress-bar" style="width: 0%;"></div>
                         </div>
-                        
+
                         <div class="status-indicator">
                             <i id="status-icon" class="fa-solid fa-circle-pause text-muted"></i>
                             <span id="status-text">Ready to send</span>
@@ -121,8 +132,9 @@
         </section>
     </div>
 
-    <!-- Socket.IO -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Cloudflare Turnstile -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="script.js"></script>
 </body>
+
 </html>
