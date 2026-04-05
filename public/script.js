@@ -5,17 +5,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardEmail = document.getElementById('dashboard-email');
     const dashboardPassword = document.getElementById('dashboard-password');
     const togglePasswordBtn = document.getElementById('toggle-password');
-    
+
     // Compose Form
     const senderName = document.getElementById('sender-name');
     const subject = document.getElementById('subject');
     const messageBody = document.getElementById('message-body');
-    
+
     // Recipients
     const recipientsInput = document.getElementById('recipients-input');
     const detectedCount = document.getElementById('detected-count');
     const emailValidationError = document.getElementById('email-validation-error');
-    
+
     // Progress Monitor
     const statTotal = document.getElementById('stat-total');
     const statSent = document.getElementById('stat-sent');
@@ -24,11 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const statusIcon = document.getElementById('status-icon');
     const statusText = document.getElementById('status-text');
-    
+
     const sendBtn = document.getElementById('send-btn');
     const stopBtn = document.getElementById('stop-btn');
 
-    // State 
+    // State
     let extractedEmails = [];
     let isSending = false;
     let stopRequested = false;
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Process pasted emails
     recipientsInput.addEventListener('input', extractEmails);
-    
+
     function extractEmails() {
         const text = recipientsInput.value;
         if (!text.trim()) {
@@ -56,12 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Regex to find multiple emails
         const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
         const matches = text.match(emailRegex) || [];
-        
+
         // Remove duplicates & lowercase
         extractedEmails = [...new Set(matches.map(e => e.toLowerCase()))];
-        
+
         detectedCount.textContent = `${extractedEmails.length} found`;
-        
+
         if (extractedEmails.length > 0) {
             emailValidationError.classList.add('hidden');
         }
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please complete the spam protection check.');
             return;
         }
-        
+
         const emailVal = dashboardEmail.value.trim();
         const appPasswordVal = dashboardPassword.value.trim();
 
@@ -97,19 +97,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Verify credentials first
-            const verifyPayload = { 
-                email: emailVal, 
+            const verifyPayload = {
+                email: emailVal,
                 appPassword: appPasswordVal,
-                cfToken: turnstileResponse 
+                cfToken: turnstileResponse
             };
-            
+
             const verifyResponse = await fetch('/api/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(verifyPayload)
             });
             const verifyResult = await verifyResponse.json();
-            
+
             if (!verifyResult.success) {
                 alert(verifyResult.message || 'Invalid credentials or spam check failed.');
                 sendBtn.disabled = false;
@@ -120,22 +120,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Start sending batches
             startSendingUI(extractedEmails.length);
-            
+
             // Loop and chunk emails to prevent server timeouts
-            // Chunk size of 3 means the worker will only process 3 at a time in the background.
-            // Adjust chunk size if Worker has large CPU limits, 3 is very safe.
-            const chunkSize = 3; 
+            // Chunk size of 10 for better throughput - matches server's max batch size
+            const chunkSize = 10;
             let sentCount = 0;
             let failedCount = 0;
-            
+
             for (let i = 0; i < extractedEmails.length; i += chunkSize) {
                 if (stopRequested) break;
-                
+
                 const chunk = extractedEmails.slice(i, i + chunkSize);
-                
+
                 // Show current status
                 updateProgressUI(sentCount, failedCount, extractedEmails.length, `Sending to batch ${Math.floor(i/chunkSize) + 1}...`);
-                
+
                 try {
                     const payload = {
                         email: emailVal,
@@ -154,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         sentCount += result.results.sent;
                         failedCount += result.results.failed;
@@ -166,14 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Batch failed:', err);
                     failedCount += chunk.length;
                 }
-                
+
                 // Update final progress for this batch
                 updateProgressUI(sentCount, failedCount, extractedEmails.length);
-                
-                // Small artificial delay to respect rate limits
-                await new Promise(res => setTimeout(res, 1000));
+
+                // Minimal delay between batches
+                await new Promise(res => setTimeout(res, 200));
             }
-            
+
             isSending = false;
             if (stopRequested) {
                 statusIcon.className = 'fa-solid fa-circle-stop text-danger';
@@ -183,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = 'Completed successfully!';
             }
             finishSendingUI();
-            
+
         } catch (error) {
             console.error('Send error:', error);
             alert('Failed to connect to server.');
@@ -225,14 +224,14 @@ document.addEventListener('DOMContentLoaded', () => {
         statFailed.textContent = '0';
         statRemaining.textContent = total;
         progressBar.style.width = '0%';
-        
+
         statusIcon.className = 'fa-solid fa-circle-notch fa-spin text-primary';
         statusText.textContent = 'Sending emails...';
 
         sendBtn.classList.add('hidden');
         stopBtn.classList.remove('hidden');
         stopBtn.disabled = false;
-        
+
         // Disable inputs
         setInputState(true);
     }
@@ -240,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateProgressUI(sentCount, failedCount, total, customText) {
         statSent.textContent = sentCount;
         statFailed.textContent = failedCount;
-        
+
         const remaining = total - (sentCount + failedCount);
         statRemaining.textContent = remaining;
 

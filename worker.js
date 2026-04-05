@@ -1,7 +1,7 @@
 import { connect } from 'cloudflare:sockets';
 
 const TURNSTILE_SECRET = '1x0000000000000000000000000000000AA';
-const MAX_RECIPIENTS_PER_BATCH = 5;
+const MAX_RECIPIENTS_PER_BATCH = 10;
 const SMTP_PORT = 465;
 const SMTP_HOST = 'smtp.gmail.com';
 
@@ -99,7 +99,7 @@ async function handleSendBatch(request) {
     }
 
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
-        return jsonResponse({ success: false, message: "Max 5 emails per batch" }, 400);
+        return jsonResponse({ success: false, message: "Max 10 emails per batch" }, 400);
     }
 
     const isHuman = await verifyTurnstile(cfToken, ip);
@@ -110,8 +110,10 @@ async function handleSendBatch(request) {
     let sent = 0;
     let failed = 0;
 
+    // Reuse single SMTP connection for all recipients in batch
+    const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
+
     for (const to of recipients) {
-        const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
         const result = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
 
         if (result.success) sent++;
@@ -120,9 +122,11 @@ async function handleSendBatch(request) {
             failed++;
         }
 
-        // ✅ SAFE DELAY
-        await new Promise(r => setTimeout(r, 2000));
+        // Minimal delay between emails (100ms) - enough for rate limiting without being excessive
+        await new Promise(r => setTimeout(r, 100));
     }
+
+    try { await client.write('QUIT'); } catch { }
 
     return jsonResponse({
         success: true,

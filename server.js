@@ -40,7 +40,7 @@ function createTransporter(email, appPassword) {
     family: 4,
 
     pool: true,
-    maxConnections: 5,
+    maxConnections: 20,
     maxMessages: 100
   });
 }
@@ -100,24 +100,24 @@ app.post("/api/send-batch", async (req, res) => {
   let sent = 0;
   let failed = 0;
 
-  for (const recipient of recipients) {
-      if (activeSessions['global_stop']) break; // Simple stop flag for local dev
-
-      try {
-          await transporter.sendMail({
-              from: `"${senderName}" <${email}>`,
-              to: recipient,
-              subject: subject,
-              text: messageBody,
-              html: `<p>${messageBody}</p>`
-          });
-          sent++;
-      } catch (error) {
+  // Send all emails in parallel for maximum speed
+  const results = await Promise.allSettled(recipients.map(recipient =>
+      transporter.sendMail({
+          from: `"${senderName}" <${email}>`,
+          to: recipient,
+          subject: subject,
+          text: messageBody,
+          html: `<p>${messageBody}</p>`
+      }).then(() => ({ success: true, recipient }))
+      .catch(error => {
           console.error("Email failed:", recipient, error);
-          failed++;
-      }
-      // Small artificial delay
-      await new Promise(r => setTimeout(r, 500));
+          return { success: false, recipient, error: error.message };
+      })
+  ));
+
+  for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) sent++;
+      else failed++;
   }
 
   res.json({
@@ -131,7 +131,7 @@ app.post("/api/send-batch", async (req, res) => {
 app.post("/api/stop", (req, res) => {
   activeSessions['global_stop'] = true;
   res.json({ success: true, message: "Stopping future batches." });
-  
+
   // reset after a few seconds so next send works
   setTimeout(() => { activeSessions['global_stop'] = false; }, 5000);
 });
