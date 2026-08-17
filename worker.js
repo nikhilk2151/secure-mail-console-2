@@ -1,7 +1,7 @@
 import { connect } from 'cloudflare:sockets';
 
 const TURNSTILE_SECRET = '1x0000000000000000000000000000000AA';
-const MAX_RECIPIENTS_PER_BATCH = 10;
+const MAX_RECIPIENTS_PER_BATCH = 50;
 const SMTP_PORT = 465;
 const SMTP_HOST = 'smtp.gmail.com';
 
@@ -44,6 +44,26 @@ function jsonResponse(body, status = 200) {
             ...corsHeaders
         }
     });
+}
+
+/* ---------------- HELPERS ---------------- */
+
+function generateUUID() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
+function formatRFC2822Date() {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const d = new Date();
+    return `${days[d.getUTCDay()]}, ${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} ` +
+           `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:` +
+           `${String(d.getUTCSeconds()).padStart(2,'0')} +0000`;
 }
 
 /* ---------------- TURNSTILE ---------------- */
@@ -99,7 +119,7 @@ async function handleSendBatch(request) {
     }
 
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
-        return jsonResponse({ success: false, message: "Max 10 emails per batch" }, 400);
+        return jsonResponse({ success: false, message: `Max ${MAX_RECIPIENTS_PER_BATCH} emails per batch` }, 400);
     }
 
     const isHuman = await verifyTurnstile(cfToken, ip);
@@ -107,30 +127,37 @@ async function handleSendBatch(request) {
         return jsonResponse({ success: false, message: "Spam check failed" }, 401);
     }
 
+    const results = await Promise.allSettled(
+        recipients.map(async (to) => {
+            const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
+            const res = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
+            if (!res.success) throw new Error(res.error || 'Failed');
+            return { success: true, recipient: to };
+        })
+    );
+
     let sent = 0;
     let failed = 0;
+    const failedRecipients = [];
+    const details = [];
 
-    // Reuse single SMTP connection for all recipients in batch
-    const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
-
-    for (const to of recipients) {
-        const result = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
-
-        if (result.success) sent++;
-        else {
-            console.error(result.error);
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const recipient = recipients[i];
+        if (result.status === 'fulfilled' && result.value.success) {
+            sent++;
+            details.push({ recipient, success: true });
+        } else {
+            const errMsg = result.status === 'fulfilled' ? result.value.error : result.reason?.message;
             failed++;
+            failedRecipients.push(recipient);
+            details.push({ recipient, success: false, error: errMsg });
         }
-
-        // Minimal delay between emails (100ms) - enough for rate limiting without being excessive
-        await new Promise(r => setTimeout(r, 100));
     }
-
-    try { await client.write('QUIT'); } catch { }
 
     return jsonResponse({
         success: true,
-        results: { sent, failed }
+        results: { sent, failed, failedRecipients, details }
     });
 }
 
@@ -225,20 +252,48 @@ class SmtpClient {
             await this.write('DATA');
             await this.readResponse();
 
-            const messageId = `<${Date.now()}@securemail>`;
-            const date = new Date().toUTCString();
+            const senderDomain = email.split('@')[1] || 'gmail.com';
+            const messageId = `<${generateUUID()}@${senderDomain}>`;
+            const date = formatRFC2822Date();
+            const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+            const bodyHtml = body
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+
+            const htmlBody = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#222222;margin:0;padding:20px;background-color:#ffffff;">
+  <div style="max-width:600px;margin:0 auto;">${bodyHtml}</div>
+</body></html>`;
 
             const msg = [
-                `From: "${senderName}" <${email}>`,
+                `From: "${senderName.replace(/"/g, '')}" <${email}>`,
                 `To: ${to}`,
+                `Reply-To: ${email}`,
                 `Subject: ${subject}`,
                 `Date: ${date}`,
                 `Message-ID: ${messageId}`,
                 `MIME-Version: 1.0`,
+                `Content-Type: multipart/alternative; boundary="${boundary}"`,
+                `X-Priority: 3`,
+                `Importance: normal`,
+                '',
+                `--${boundary}`,
                 `Content-Type: text/plain; charset=UTF-8`,
-                `X-Mailer: SecureMailConsole`,
+                `Content-Transfer-Encoding: quoted-printable`,
                 '',
                 body,
+                '',
+                `--${boundary}`,
+                `Content-Type: text/html; charset=UTF-8`,
+                `Content-Transfer-Encoding: quoted-printable`,
+                '',
+                htmlBody,
+                '',
+                `--${boundary}--`,
                 '.',
                 ''
             ].join('\r\n');

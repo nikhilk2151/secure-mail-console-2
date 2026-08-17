@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Mail Console</title>
+    <title>Secure Mail Console — Fast Bulk Email Sender</title>
+    <meta name="description" content="Secure, fast bulk email sender with Gmail SMTP, spam-free inbox delivery, and real-time progress tracking.">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
@@ -14,8 +15,35 @@
 </head>
 
 <body>
+    <!-- Animated Background -->
+    <div class="animated-bg" aria-hidden="true">
+        <!-- Floating orbs -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+        <div class="orb orb-5"></div>
+        <!-- Grid overlay -->
+        <div class="grid-overlay"></div>
+        <!-- Floating particles -->
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <!-- Scan line -->
+        <div class="scan-line"></div>
+    </div>
+
     <!-- Password Gate Overlay -->
     <div id="password-gate" class="password-gate">
+        <div class="gate-orb gate-orb-1"></div>
+        <div class="gate-orb gate-orb-2"></div>
         <div class="gate-card fade-in">
             <div class="gate-icon">
                 <i class="fa-solid fa-lock"></i>
@@ -86,11 +114,13 @@
                             <label for="message-body">Message Body (Plain Text)</label>
                             <textarea id="message-body" placeholder="Write your email here..." required></textarea>
                         </div>
+
+
                         
                         <!-- Anti Spam Turnstile -->
                         <div class="form-group" style="margin-top: 1rem;">
                             <label><i class="fa-solid fa-shield-cat"></i> Spam Protection</label>
-                            <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="light"></div>
+                            <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="dark"></div>
                         </div>
                     </form>
                 </div>
@@ -144,6 +174,9 @@
                             <span id="status-text">Ready to send</span>
                         </div>
 
+                        <!-- Speed / ETA Indicator -->
+                        <div class="speed-indicator" id="speed-indicator"></div>
+
                         <div class="control-buttons">
                             <button type="button" id="send-btn" class="btn btn-success btn-lg flex-1">
                                 <i class="fa-solid fa-paper-plane"></i> Send All
@@ -151,6 +184,17 @@
                             <button type="button" id="stop-btn" class="btn btn-danger btn-lg flex-1 hidden">
                                 <i class="fa-solid fa-stop"></i> Stop Sending
                             </button>
+                        </div>
+
+                        <!-- Live Delivery Log -->
+                        <div class="activity-log-container" style="margin-top: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"><i class="fa-solid fa-terminal"></i> Live Delivery Log</span>
+                                <button type="button" id="clear-log-btn" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; text-decoration: underline;">Clear</button>
+                            </div>
+                            <div id="activity-log" class="activity-log">
+                                <div class="log-entry log-muted">Waiting to start sending...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
