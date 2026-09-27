@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let totalSent = 0;
             let totalFailed = 0;
             let pendingRecipients = [...extractedEmails];
-            const batchSize = 10; // 10 per batch for reliable Gmail inbox throughput
+            const batchSize = 5; // Small batches for human-like inbox delivery
 
             // Main sending round
             let failedForRetry = [];
@@ -300,9 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgressUI(totalSent, totalFailed, extractedEmails.length);
                 updateSpeedIndicator(totalSent, totalFailed, extractedEmails.length);
 
-                // Small safe jitter (100ms) to ensure Gmail reputation and 0 drops
+                // Random 1-3s jitter between batches — mimics natural sending cadence
+                // This is critical for inbox placement and Gmail reputation
                 if (i + batchSize < pendingRecipients.length && !stopRequested) {
-                    await new Promise(r => setTimeout(r, 100));
+                    const jitter = 1000 + Math.floor(Math.random() * 2000);
+                    addLog(`Cooling down ${(jitter/1000).toFixed(1)}s before next batch...`, 'info');
+                    await new Promise(r => setTimeout(r, jitter));
                 }
             }
 
@@ -319,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText.textContent = `Auto-retrying ${toRetry.length} failed emails (Attempt ${retryAttempt}/${MAX_RETRIES})...`;
                 statusIcon.className = 'fa-solid fa-rotate fa-spin text-warning';
 
-                // Exponential backoff before retry (1.5s, 3s, 5s)
-                const backoffDelay = retryAttempt * 1500;
+                // Exponential backoff before retry (3s, 6s, 10s)
+                const backoffDelay = retryAttempt * 3000;
                 await new Promise(r => setTimeout(r, backoffDelay));
 
                 for (let i = 0; i < toRetry.length; i += batchSize) {

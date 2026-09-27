@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Mail Console — Fast Bulk Email Sender</title>
-    <meta name="description" content="Secure, fast bulk email sender with Gmail SMTP, spam-free inbox delivery, and real-time progress tracking.">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Bulk Mail Sender | Direct 1-to-1 Inbox Engine</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
@@ -15,182 +16,312 @@
 </head>
 
 <body>
-    <!-- Animated Background -->
-    <div class="animated-bg" aria-hidden="true">
-        <!-- Floating orbs -->
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="orb orb-4"></div>
-        <div class="orb orb-5"></div>
-        <!-- Grid overlay -->
-        <div class="grid-overlay"></div>
-        <!-- Floating particles -->
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <!-- Scan line -->
-        <div class="scan-line"></div>
-    </div>
-
     <!-- Password Gate Overlay -->
     <div id="password-gate" class="password-gate">
-        <div class="gate-orb gate-orb-1"></div>
-        <div class="gate-orb gate-orb-2"></div>
-        <div class="gate-card fade-in">
-            <div class="gate-icon">
-                <i class="fa-solid fa-lock"></i>
+        <div class="gate-card">
+            <div class="logo gate-logo">
+                <svg viewBox="0 0 32 32"><rect x="5" y="7" width="22" height="18" rx="3"/><path d="m6 9 10 8 10-8"/></svg>
             </div>
-            <h2>Access Protected</h2>
-            <p>Enter the password to continue</p>
+            <h2>Bulk Mail Sender</h2>
+            <p>Enter 1-to-1 console security password to continue</p>
             <form id="gate-form" autocomplete="off">
-                <div class="form-group">
-                    <div class="password-wrapper">
-                        <input type="password" id="gate-password" placeholder="Enter password..." autocomplete="off" required>
-                        <button type="button" id="toggle-gate-password" class="icon-button"><i class="fa-regular fa-eye"></i></button>
+                <div class="field" style="text-align: left; margin-bottom: 14px;">
+                    <label for="gate-password">Access Password</label>
+                    <div class="password-wrap">
+                        <input type="password" id="gate-password" placeholder="Enter console password..." autocomplete="off" required>
+                        <span id="toggle-gate-password" class="eye"><i class="fa-regular fa-eye"></i></span>
                     </div>
                 </div>
                 <div id="gate-error" class="gate-error hidden">
                     <i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>Incorrect password</span>
+                    <span>Incorrect password. Please try again.</span>
                 </div>
-                <button type="submit" id="gate-submit-btn" class="btn btn-primary btn-block">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Enter
+                <button type="submit" id="gate-submit-btn" class="send" style="height: 44px; margin-top: 6px;">
+                    Enter Console &rarr;
                 </button>
             </form>
         </div>
     </div>
 
-    <div class="app-container hidden" id="main-app">
-        <!-- Header -->
-        <header class="app-header">
-            <h1><i class="fa-solid fa-shield-halved"></i> Secure Mail Console</h1>
-        </header>
+    <!-- Main Application Container -->
+    <div class="app hidden" id="main-app">
+        <!-- Top Dark Bar -->
+        <div class="topbar">
+            <span>Bulk Mail Sender</span>
+        </div>
 
-        <!-- Dashboard Section -->
-        <section id="dashboard-section">
-            <div class="dashboard-header fade-in">
-                <h2><i class="fa-solid fa-paper-plane"></i> Bulk Email Sender</h2>
+        <main class="container">
+            <!-- Hero Section -->
+            <section class="hero">
+                <div class="brand">
+                    <div class="logo">
+                        <svg viewBox="0 0 32 32"><rect x="5" y="7" width="22" height="18" rx="3"/><path d="m6 9 10 8 10-8"/></svg>
+                    </div>
+                    <div>
+                        <div class="brandline">
+                            <h1>Bulk Mail Sender</h1>
+                            <span class="badge">Direct 1-to-1 Inbox Engine</span>
+                        </div>
+                        <div class="subtitle">Cold email outreach tool for US &amp; Canada clients with Gmail 16-digit App Password</div>
+                    </div>
+                </div>
+                <div class="timebox">
+                    <div class="time">◉ <strong>US East (NYC):</strong> <span id="nyc-time">09:46 AM</span></div>
+                    <span>|</span>
+                    <div class="time"><strong>US West (LA):</strong> <span id="la-time">06:46 AM</span></div>
+                    <div class="work"><span class="dot"></span>&nbsp; US Work Hours (Best Open Rates)</div>
+                </div>
+            </section>
+
+            <!-- Strategy Banner -->
+            <section class="strategy">
+                <div class="strategy-left">
+                    <div class="shield">
+                        <svg viewBox="0 0 32 32"><path d="M16 4 26 8v7c0 6.5-4.1 10.9-10 13-5.9-2.1-10-6.5-10-13V8z"/><path d="m11 16 3 3 7-7"/></svg>
+                    </div>
+                    <div>
+                        <h2>100% Inbox Placement Strategy (USA &amp; Canada SEO Outreach) <span class="tag">INDIA TO USA/CA</span></h2>
+                        <p>Spam filter bypass karne ke liye ye 5 golden rules follow karein:</p>
+                    </div>
+                </div>
+                <button type="button" class="rules" id="rules-btn">5 Rules Dekhein&nbsp;⌄</button>
+            </section>
+
+            <!-- 5 Rules Collapsible Card -->
+            <div id="rules-dropdown" class="rules-box hidden">
+                <div class="rules-grid">
+                    <div class="rule-item">
+                        <div class="rule-num">1</div>
+                        <div class="rule-content">
+                            <strong>Daily Warmup Limit</strong>
+                            <p>Naye account se pehle hafte me 30-50 emails se start karein, sudden 500 emails mat bhejein.</p>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-num">2</div>
+                        <div class="rule-content">
+                            <strong>Natural Subject Lines</strong>
+                            <p>"FREE", "$$$", "GUARANTEED" jaise spam words use na karein. Simple aur conversational rakhein.</p>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-num">3</div>
+                        <div class="rule-content">
+                            <strong>Clean Plain-Text Body</strong>
+                            <p>Bina heavy images/attachments ke 1-to-1 message Google Primary Inbox me 99% deliver hota hai.</p>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-num">4</div>
+                        <div class="rule-content">
+                            <strong>Target US Business Hours</strong>
+                            <p>NYC/LA ke morning 9:00 AM - 11:30 AM ke dauran bhejein jab clients actively emails check karte hain.</p>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-num">5</div>
+                        <div class="rule-content">
+                            <strong>Simple Opt-Out Line</strong>
+                            <p>Email ke end me "Reply STOP if not interested" likhne se Spam complaints zero ho jati hain.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="dashboard-grid">
-                <!-- Composer Card -->
-                <div class="card composer-card fade-in delay-1">
-                    <h3><i class="fa-solid fa-pen-to-square"></i> Compose Message</h3>
-                    <form id="compose-form">
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <label for="dashboard-email">Your Gmail</label>
-                                <input type="email" id="dashboard-email" placeholder="you@gmail.com" required>
+            <!-- Main Dashboard Section -->
+            <section id="dashboard-section" class="dashboard">
+                <!-- LEFT COLUMN: Sender Details & Compose -->
+                <div class="card">
+                    <div class="cardhead">
+                        <div class="cardtitle">
+                            <div class="cardicon">
+                                <svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><path d="M9.5 15 18 6.5a2.1 2.1 0 0 1 3 3L12.5 18"/><path d="m15 8 2 2"/></svg>
                             </div>
-                            <div class="form-group half">
-                                <label for="dashboard-password">App Password</label>
-                                <div class="password-wrapper">
-                                    <input type="password" id="dashboard-password" placeholder="16-char app password"
-                                        required>
-                                    <button type="button" id="toggle-password" class="icon-button"><i
-                                            class="fa-regular fa-eye"></i></button>
+                            <div>
+                                <h3>Sender Details &amp; Gmail SMTP</h3>
+                                <p>Apna Gmail account aur 16-digit App Password enter karein</p>
+                            </div>
+                        </div>
+                        <span class="help" id="help-btn">16-digit Password<br>Kaise Banaye? ⌄</span>
+                    </div>
+
+                    <!-- Password Guide Modal / Collapsible -->
+                    <div id="password-guide" class="password-guide-box hidden">
+                        <div class="guide-header">
+                            <strong><i class="fa-solid fa-key"></i> Gmail 16-Digit App Password Setup:</strong>
+                            <span id="close-guide" style="cursor:pointer;font-weight:bold;">✕</span>
+                        </div>
+                        <ol>
+                            <li>Google Account me jayein: <strong>myaccount.google.com</strong> &rarr; <strong>Security</strong></li>
+                            <li><strong>2-Step Verification</strong> ko ON karein.</li>
+                            <li>Search box me type karein <strong>"App Passwords"</strong>.</li>
+                            <li>App name me <strong>"Bulk Mail Sender"</strong> likh kar <em>Create</em> par click karein.</li>
+                            <li>Screen par dikhne wala 16-letter code copy karke neeche paste karein.</li>
+                        </ol>
+                    </div>
+
+                    <form id="compose-form">
+                        <div class="formgrid">
+                            <div class="field">
+                                <label for="sender-name">Sender Name <span>(Optional)</span></label>
+                                <input type="text" id="sender-name" placeholder="e.g. John from SEO">
+                                <div class="hint">Client ke inbox me ye naam show hoga</div>
+                            </div>
+                            <div class="field">
+                                <label for="dashboard-email">Sender Gmail Address <span class="req">*</span></label>
+                                <input type="email" id="dashboard-email" placeholder="yourname@gmail.com" required>
+                                <div class="hint">Jis Gmail id se mail bhejna hai</div>
+                            </div>
+                            <div class="field">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label for="dashboard-password" style="margin-bottom: 0;">16-Digit App Password <span class="req">*</span></label>
+                                    <span id="pw-char-count" style="font-size: 11px; color: #7b8492;">0/16 chars</span>
+                                </div>
+                                <div class="password-wrap">
+                                    <input id="dashboard-password" type="password" maxlength="19" placeholder="•••• •••• •••• ••••" required>
+                                    <span class="eye" id="toggle-password"><i class="fa-regular fa-eye"></i></span>
+                                </div>
+                                <div class="hint">Google security se bana hua 16 akshar ka password</div>
+                            </div>
+                        </div>
+
+                        <!-- Email Subject & Templates Card Section -->
+                        <div class="subject-section">
+                            <div class="section-divider"></div>
+                            
+                            <div class="sub-head-row">
+                                <div class="sub-title-group">
+                                    <div class="cardicon subicon">
+                                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin:0; font-size:16px; color:#182131;">Email Subject &amp; Body Message</h4>
+                                        <p style="margin:3px 0 0; font-size:12px; color:#727c8c;">Client ko bhejne wala message aur subject likhein</p>
+                                    </div>
+                                </div>
+                                <div class="score">
+                                    <i class="fa-solid fa-circle-check"></i>&nbsp; Inbox Score: 100/100 (Excellent)
                                 </div>
                             </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <label for="sender-name">Sender Name</label>
-                                <input type="text" id="sender-name" placeholder="E.g., John Doe" required>
+
+                            <!-- Templates Selection -->
+                            <div class="template">
+                                <div class="template-title"><i class="fa-solid fa-wand-magic-sparkles" style="color:#1267d9;"></i> Proven SEO Outreach Templates (High USA/Canada Open Rate):</div>
+                                <div class="template-buttons">
+                                    <button type="button" class="tmpl-btn" data-template="audit">SEO Quick Wins / Audit Pitch (High Inbox Rate)</button>
+                                    <button type="button" class="tmpl-btn" data-template="content">SEO Content &amp; Article Pitch (Conversational)</button>
+                                    <button type="button" class="tmpl-btn" data-template="broken">Content Update / Broken Link Suggestion</button>
+                                </div>
                             </div>
-                            <div class="form-group half">
-                                <label for="subject">Email Subject</label>
-                                <input type="text" id="subject" placeholder="Enter subject line..." required>
+
+                            <div class="field" style="margin-top: 18px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <label for="subject" style="margin-bottom:0;">Subject Line <span class="req">*</span></label>
+                                    <span id="subject-char-hint" style="font-size:11px; color:#7b8492;">0 chars (Best: 20-50 chars)</span>
+                                </div>
+                                <input type="text" id="subject" placeholder="Quick question regarding {domain} SEO performance" required>
                             </div>
-                        </div>
-                        <div class="form-group flex-grow">
-                            <label for="message-body">Message Body (Plain Text)</label>
-                            <textarea id="message-body" placeholder="Write your email here..." required></textarea>
                         </div>
 
+                        <div class="message field">
+                            <label for="message-body">Email Body Message <span class="req">*</span></label>
+                            <textarea id="message-body" placeholder="Client ko bhejne wala message yahan likhein..." required></textarea>
+                        </div>
 
-                        
-                        <!-- Anti Spam Turnstile -->
-                        <div class="form-group" style="margin-top: 1rem;">
-                            <label><i class="fa-solid fa-shield-cat"></i> Spam Protection</label>
+                        <!-- Cloudflare Turnstile -->
+                        <div class="turnstile">
+                            <span class="check"><i class="fa-solid fa-shield-halved" style="color:#1267d9; font-size:12px;"></i></span>
+                            <div style="flex:1;">
+                                <span style="font-weight:600; color:#354052; display:block;">Spam Protection — Cloudflare Turnstile verification</span>
+                                <span style="font-size:11px; color:#7b8492;">Complete bot verification before sending</span>
+                            </div>
                             <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="light"></div>
                         </div>
                     </form>
                 </div>
 
-                <!-- Recipients & Control Card -->
-                <div class="right-column">
-                    <div class="card recipients-card fade-in delay-2">
-                        <div class="card-header-flex">
-                            <h3><i class="fa-solid fa-users"></i> Recipients</h3>
-                            <span class="badge" id="detected-count">0 found</span>
+                <!-- RIGHT COLUMN: Recipients & Progress -->
+                <div>
+                    <!-- Recipients Card -->
+                    <div class="card recipient-card">
+                        <div class="cardhead">
+                            <div class="cardtitle">
+                                <div class="cardicon">
+                                    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.5-3.2 2.2-5 5.5-5s5 1.8 5.5 5"/><circle cx="17.5" cy="9" r="2.2"/><path d="M16 14c2.8 0 4.4 1.5 4.8 4"/></svg>
+                                </div>
+                                <div>
+                                    <h3>Recipients</h3>
+                                    <p>Paste emails (comma separated, new lines, or Excel copy)</p>
+                                </div>
+                            </div>
+                            <span class="counter" id="detected-count">0 found</span>
                         </div>
-                        <p class="help-subtext">Paste emails (comma separated, new lines, or Excel copy)</p>
-                        <div class="form-group flex-grow">
-                            <textarea id="recipients-input"
-                                placeholder="john@example.com&#10;jane@example.com"></textarea>
-                        </div>
-                        <div id="email-validation-error" class="error-message hidden">
-                            <i class="fa-solid fa-triangle-exclamation"></i> <span>Please enter valid recipients.</span>
+                        <textarea class="recipient-box" id="recipients-input" placeholder="john@example.com&#10;jane@example.com&#10;client@usabusiness.com"></textarea>
+                        <div id="email-validation-error" class="error-banner hidden">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span>Please enter valid recipient emails.</span>
                         </div>
                     </div>
 
                     <!-- Progress Monitor Card -->
-                    <div class="card progress-card fade-in delay-3">
-                        <h3><i class="fa-solid fa-chart-pie"></i> Progress Monitor</h3>
-
-                        <div class="stats-grid">
-                            <div class="stat-box neutral">
-                                <span class="stat-label">Total</span>
-                                <span class="stat-value" id="stat-total">0</span>
-                            </div>
-                            <div class="stat-box success">
-                                <span class="stat-label">Sent</span>
-                                <span class="stat-value" id="stat-sent">0</span>
-                            </div>
-                            <div class="stat-box danger">
-                                <span class="stat-label">Failed</span>
-                                <span class="stat-value" id="stat-failed">0</span>
-                            </div>
-                            <div class="stat-box warning">
-                                <span class="stat-label">Remaining</span>
-                                <span class="stat-value" id="stat-remaining">0</span>
+                    <div class="card progress">
+                        <div class="cardhead">
+                            <div class="cardtitle">
+                                <div class="cardicon">
+                                    <svg viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-8"/></svg>
+                                </div>
+                                <div>
+                                    <h3>Progress Monitor</h3>
+                                    <p>Real-time sending progress</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" id="progress-bar" style="width: 0%;"></div>
+                        <div class="stats">
+                            <div class="stat total">
+                                <small>Total</small>
+                                <strong id="stat-total">0</strong>
+                            </div>
+                            <div class="stat sent">
+                                <small>Sent</small>
+                                <strong id="stat-sent">0</strong>
+                            </div>
+                            <div class="stat failed">
+                                <small>Failed</small>
+                                <strong id="stat-failed">0</strong>
+                            </div>
+                            <div class="stat remaining">
+                                <small>Remaining</small>
+                                <strong id="stat-remaining">0</strong>
+                            </div>
                         </div>
 
-                        <div class="status-indicator">
-                            <i id="status-icon" class="fa-solid fa-circle-pause text-muted"></i>
+                        <div class="progressbar">
+                            <span id="progress-bar" style="width: 0%;"></span>
+                        </div>
+                        
+                        <div class="status">
+                            <i id="status-icon" class="fa-solid fa-circle text-muted" style="font-size: 8px;"></i>&nbsp;
                             <span id="status-text">Ready to send</span>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button type="button" id="send-btn" class="send">
+                                ➤&nbsp; Send All
+                            </button>
+                            <button type="button" id="stop-btn" class="stop hidden">
+                                ⏹&nbsp; Stop Sending
+                            </button>
                         </div>
 
                         <!-- Speed / ETA Indicator -->
                         <div class="speed-indicator" id="speed-indicator"></div>
 
-                        <div class="control-buttons">
-                            <button type="button" id="send-btn" class="btn btn-success btn-lg flex-1">
-                                <i class="fa-solid fa-paper-plane"></i> Send All
-                            </button>
-                            <button type="button" id="stop-btn" class="btn btn-danger btn-lg flex-1 hidden">
-                                <i class="fa-solid fa-stop"></i> Stop Sending
-                            </button>
-                        </div>
-
                         <!-- Live Delivery Log -->
-                        <div class="activity-log-container" style="margin-top: 1.25rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"><i class="fa-solid fa-terminal"></i> Live Delivery Log</span>
-                                <button type="button" id="clear-log-btn" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; text-decoration: underline;">Clear</button>
+                        <div class="activity-log-container">
+                            <div class="activity-log-header">
+                                <span><i class="fa-solid fa-terminal"></i> Live Delivery Log</span>
+                                <button type="button" id="clear-log-btn" class="clear-log-btn">Clear</button>
                             </div>
                             <div id="activity-log" class="activity-log">
                                 <div class="log-entry log-muted">Waiting to start sending...</div>
@@ -198,13 +329,119 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
+        </main>
     </div>
 
     <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="script.js"></script>
+    <!-- Live Time & Interactive Helpers -->
+    <script>
+        // Update Live US Time Clocks
+        function updateUSTimes() {
+            try {
+                const now = new Date();
+                const nyOptions = { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: true };
+                const laOptions = { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: true };
+                const nycEl = document.getElementById('nyc-time');
+                const laEl = document.getElementById('la-time');
+                if (nycEl) nycEl.textContent = new Intl.DateTimeFormat('en-US', nyOptions).format(now);
+                if (laEl) laEl.textContent = new Intl.DateTimeFormat('en-US', laOptions).format(now);
+            } catch(e) {}
+        }
+        updateUSTimes();
+        setInterval(updateUSTimes, 30000);
+
+        // Toggle 5 Golden Rules Banner
+        const rulesBtn = document.getElementById('rules-btn');
+        const rulesDropdown = document.getElementById('rules-dropdown');
+        if (rulesBtn && rulesDropdown) {
+            rulesBtn.addEventListener('click', () => {
+                rulesDropdown.classList.toggle('hidden');
+            });
+        }
+
+        // Toggle 16-Digit Password Help Guide
+        const helpBtn = document.getElementById('help-btn');
+        const passwordGuide = document.getElementById('password-guide');
+        const closeGuide = document.getElementById('close-guide');
+        if (helpBtn && passwordGuide) {
+            helpBtn.addEventListener('click', () => {
+                passwordGuide.classList.toggle('hidden');
+            });
+        }
+        if (closeGuide && passwordGuide) {
+            closeGuide.addEventListener('click', () => {
+                passwordGuide.classList.add('hidden');
+            });
+        }
+
+        // App Password Char Counter
+        const pwInput = document.getElementById('dashboard-password');
+        const pwCharCount = document.getElementById('pw-char-count');
+        if (pwInput && pwCharCount) {
+            pwInput.addEventListener('input', () => {
+                const cleaned = pwInput.value.replace(/\s+/g, '');
+                pwCharCount.textContent = `${cleaned.length}/16 chars`;
+                if (cleaned.length === 16) {
+                    pwCharCount.style.color = '#15ad73';
+                    pwCharCount.style.fontWeight = 'bold';
+                } else {
+                    pwCharCount.style.color = '#7b8492';
+                    pwCharCount.style.fontWeight = 'normal';
+                }
+            });
+        }
+
+        // Subject Char Counter
+        const subjectInput = document.getElementById('subject');
+        const subjectCharHint = document.getElementById('subject-char-hint');
+        if (subjectInput && subjectCharHint) {
+            subjectInput.addEventListener('input', () => {
+                const len = subjectInput.value.length;
+                subjectCharHint.textContent = `${len} chars (Best: 20-50 chars)`;
+                if (len >= 20 && len <= 50) {
+                    subjectCharHint.style.color = '#15ad73';
+                } else {
+                    subjectCharHint.style.color = '#7b8492';
+                }
+            });
+        }
+
+        // Templates Auto-Fill
+        const templates = {
+            audit: {
+                subject: "Quick question regarding {domain} SEO performance",
+                body: "Hi {name},\n\nI was reviewing your website recently and noticed a few quick technical SEO improvements that could significantly increase your organic rankings in Google.\n\nI put together a short 2-minute video breakdown of what is holding your site back from outranking your top local competitors.\n\nWould you be open to seeing that breakdown? No charge or commitment at all.\n\nBest regards,\n[Your Name]\n\n--\nReply STOP if you do not wish to receive future updates."
+            },
+            content: {
+                subject: "Ideas for your blog / content strategy on {domain}",
+                body: "Hello {name},\n\nHope your week is going well!\n\nI have been following your company's recent updates and put together 3 fresh article ideas targeted specifically at keywords your buyers are actively searching for right now.\n\nIf you are interested, I would love to send over the outline and keyword volume data for your marketing team to review.\n\nShould I send it over to this email?\n\nWarm regards,\n[Your Name]\n\n--\nReply STOP to opt out."
+            },
+            broken: {
+                subject: "Found a broken resource on your site",
+                body: "Hi {name},\n\nI was doing some research on industry best practices and came across your helpful guide.\n\nI noticed that one of the external links in that article is currently returning a 404 error page.\n\nWe recently published a comprehensive, up-to-date replacement guide on that exact topic here: [Link]\n\nThought you might want to update the link to keep the resource fresh for your readers!\n\nBest,\n[Your Name]\n\n--\nReply STOP to unsubscribe."
+            }
+        };
+
+        document.querySelectorAll('.tmpl-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tmpl = templates[btn.dataset.template];
+                if (tmpl) {
+                    const subj = document.getElementById('subject');
+                    const body = document.getElementById('message-body');
+                    if (subj) {
+                        subj.value = tmpl.subject;
+                        subj.dispatchEvent(new Event('input'));
+                    }
+                    if (body) {
+                        body.value = tmpl.body;
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

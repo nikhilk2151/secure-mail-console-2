@@ -57,6 +57,12 @@ function generateUUID() {
     return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
+function generateHexToken(length = 32) {
+    const bytes = new Uint8Array(length / 2);
+    crypto.getRandomValues(bytes);
+    return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function formatRFC2822Date() {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -64,6 +70,22 @@ function formatRFC2822Date() {
     return `${days[d.getUTCDay()]}, ${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} ` +
            `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:` +
            `${String(d.getUTCSeconds()).padStart(2,'0')} +0000`;
+}
+
+/**
+ * Encode text for quoted-printable transfer encoding
+ * Needed for proper UTF-8 support and RFC compliance
+ */
+function encodeQuotedPrintable(str) {
+    return str.replace(/[^\t\n\r\x20-\x7e]/g, (ch) => {
+        const code = ch.charCodeAt(0);
+        if (code < 256) {
+            return '=' + code.toString(16).toUpperCase().padStart(2, '0');
+        }
+        // For multi-byte chars, encode each byte
+        const buf = new TextEncoder().encode(ch);
+        return [...buf].map(b => '=' + b.toString(16).toUpperCase().padStart(2, '0')).join('');
+    }).replace(/ $/gm, '=20'); // Trailing spaces must be encoded
 }
 
 /* ---------------- TURNSTILE ---------------- */
@@ -108,7 +130,7 @@ async function handleVerify(request) {
         : jsonResponse({ success: false, message: result.error }, 401);
 }
 
-/* ---------------- SEND ---------------- */
+/* ---------------- SEND (INBOX-OPTIMIZED) ---------------- */
 
 async function handleSendBatch(request) {
     const { email, appPassword, senderName, subject, messageBody, recipients, cfToken } = await request.json();
@@ -127,31 +149,31 @@ async function handleSendBatch(request) {
         return jsonResponse({ success: false, message: "Spam check failed" }, 401);
     }
 
-    const results = await Promise.allSettled(
-        recipients.map(async (to) => {
-            const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
-            const res = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
-            if (!res.success) throw new Error(res.error || 'Failed');
-            return { success: true, recipient: to };
-        })
-    );
-
+    // Send emails SEQUENTIALLY — critical for inbox placement
+    // Parallel sending triggers Gmail's anti-bulk detection
     let sent = 0;
     let failed = 0;
     const failedRecipients = [];
     const details = [];
 
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const recipient = recipients[i];
-        if (result.status === 'fulfilled' && result.value.success) {
+    for (let i = 0; i < recipients.length; i++) {
+        const to = recipients[i].trim();
+        try {
+            const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
+            const res = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
+            if (!res.success) throw new Error(res.error || 'Failed');
             sent++;
-            details.push({ recipient, success: true });
-        } else {
-            const errMsg = result.status === 'fulfilled' ? result.value.error : result.reason?.message;
+            details.push({ recipient: to, success: true });
+        } catch (err) {
             failed++;
-            failedRecipients.push(recipient);
-            details.push({ recipient, success: false, error: errMsg });
+            failedRecipients.push(to);
+            details.push({ recipient: to, success: false, error: err.message });
+        }
+
+        // Stagger delay between emails (200-500ms random)
+        // Mimics human sending cadence — prevents bulk pattern detection
+        if (i < recipients.length - 1) {
+            await new Promise(r => setTimeout(r, 200 + Math.floor(Math.random() * 300)));
         }
     }
 
@@ -161,7 +183,24 @@ async function handleSendBatch(request) {
     });
 }
 
-/* ---------------- SMTP CLIENT ---------------- */
+/* ================================================================
+   SMTP CLIENT — INBOX-OPTIMIZED RAW SMTP IMPLEMENTATION
+   ================================================================
+   
+   Key spam-bypass techniques used in the raw SMTP message:
+   
+   1. EHLO with sender's own domain (not generic "securemail")
+   2. Proper RFC2822 header ordering (From, To, Date, Subject first)
+   3. List-Unsubscribe + List-Unsubscribe-Post (Gmail requirement)
+   4. Per-recipient unique Message-ID with sender's domain
+   5. Per-recipient invisible content token (prevents bulk fingerprint)
+   6. Feedback-ID for Gmail Postmaster Tools
+   7. Auto-Submitted: no (signals manually composed email)
+   8. X-Entity-Ref-ID (prevents message threading/grouping)
+   9. Proper multipart/alternative with text/plain + text/html
+   10. Clean minimal HTML that looks like a personal email
+   11. Quoted-printable encoding for proper UTF-8 support
+   ================================================================ */
 
 class SmtpClient {
     constructor(host, port) {
@@ -203,7 +242,9 @@ class SmtpClient {
         try {
             await this.readResponse();
 
-            await this.write('EHLO test');
+            // EHLO with the sender's domain — essential for SPF alignment
+            const domain = email.split('@')[1] || 'gmail.com';
+            await this.write(`EHLO ${domain}`);
             await this.readResponse();
 
             await this.write('AUTH LOGIN');
@@ -230,7 +271,9 @@ class SmtpClient {
         try {
             await this.readResponse();
 
-            await this.write('EHLO securemail');
+            // EHLO with sender's actual domain — critical for SPF/DKIM alignment
+            const senderDomain = email.split('@')[1] || 'gmail.com';
+            await this.write(`EHLO ${senderDomain}`);
             await this.readResponse();
 
             await this.write('AUTH LOGIN');
@@ -252,46 +295,85 @@ class SmtpClient {
             await this.write('DATA');
             await this.readResponse();
 
-            const senderDomain = email.split('@')[1] || 'gmail.com';
+            // Generate unique identifiers per recipient
             const messageId = `<${generateUUID()}@${senderDomain}>`;
+            const entityRefId = generateUUID();
+            const uniqueToken = generateHexToken(32);
             const date = formatRFC2822Date();
             const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            const cleanName = (senderName || '').replace(/"/g, '').trim();
 
+            // Build clean HTML that mimics a personal 1-on-1 email
             const bodyHtml = body
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/\n/g, '<br>');
 
+            // Invisible unique token — prevents Gmail from fingerprinting as bulk
+            const invisibleToken = `<span style="display:none;font-size:0;line-height:0;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${uniqueToken}</span>`;
+
             const htmlBody = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#222222;margin:0;padding:20px;background-color:#ffffff;">
-  <div style="max-width:600px;margin:0 auto;">${bodyHtml}</div>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title></title></head>
+<body style="margin:0;padding:0;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#1a1a1a;">
+  ${invisibleToken}
+  <div style="max-width:580px;margin:0 auto;padding:16px 20px;">${bodyHtml}</div>
 </body></html>`;
 
+            // Encode body content as quoted-printable for proper handling
+            const qpTextBody = encodeQuotedPrintable(body);
+            const qpHtmlBody = encodeQuotedPrintable(htmlBody);
+
+            // Build RFC2822 compliant message with inbox-optimized headers
+            // Header ordering matters — From/To/Date/Subject first matches legitimate clients
             const msg = [
-                `From: "${senderName.replace(/"/g, '')}" <${email}>`,
+                // === PRIMARY HEADERS (RFC2822 standard order) ===
+                `From: "${cleanName}" <${email}>`,
                 `To: ${to}`,
-                `Reply-To: ${email}`,
-                `Subject: ${subject}`,
                 `Date: ${date}`,
+                `Subject: ${subject}`,
+                `Reply-To: ${email}`,
                 `Message-ID: ${messageId}`,
+
+                // === MIME STRUCTURE ===
                 `MIME-Version: 1.0`,
                 `Content-Type: multipart/alternative; boundary="${boundary}"`,
+
+                // === INBOX PLACEMENT HEADERS ===
+
+                // Priority: Normal — high priority (1) triggers spam filters
                 `X-Priority: 3`,
-                `Importance: normal`,
+                `X-MSMail-Priority: Normal`,
+                `Importance: Normal`,
+
+                // List-Unsubscribe — Gmail REQUIRES this for bulk inbox delivery
+                // mailto: form is the most trusted by all major providers
+                `List-Unsubscribe: <mailto:${email}?subject=unsubscribe>`,
+                `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+
+                // Feedback-ID — enables Gmail Postmaster Tools reputation tracking
+                `Feedback-ID: ${entityRefId}:${senderDomain}:campaign`,
+
+                // Auto-Submitted: no — tells receiving MTA this is human-composed
+                `Auto-Submitted: no`,
+
+                // X-Entity-Ref-ID — unique per email, prevents grouping/threading
+                `X-Entity-Ref-ID: ${entityRefId}`,
+
+                // === MULTIPART BODY ===
                 '',
                 `--${boundary}`,
                 `Content-Type: text/plain; charset=UTF-8`,
                 `Content-Transfer-Encoding: quoted-printable`,
                 '',
-                body,
+                qpTextBody,
                 '',
                 `--${boundary}`,
                 `Content-Type: text/html; charset=UTF-8`,
                 `Content-Transfer-Encoding: quoted-printable`,
                 '',
-                htmlBody,
+                qpHtmlBody,
                 '',
                 `--${boundary}--`,
                 '.',
