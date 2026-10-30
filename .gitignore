@@ -1,12 +1,4 @@
-.env
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.swp
-.DS_Store
-.idea/
-.vscode/
 node_modules/
-
-scratch/
+.env
+.wrangler/
+.DS_Store
