@@ -100,7 +100,7 @@ app.post("/api/verify", async (req, res) => {
 
 app.post("/api/send-batch", async (req, res) => {
 
-  const { email, appPassword, senderName, subject, messageBody, recipients, cfToken } = req.body;
+  const { email, appPassword, senderName, subject, messageBody, recipients, cfToken, attachments } = req.body;
 
   if (!email || !appPassword || !recipients?.length) {
     return res.status(400).json({
@@ -120,20 +120,36 @@ app.post("/api/send-batch", async (req, res) => {
   let sent = 0;
   let failed = 0;
 
+  // Format attachments for nodemailer if provided
+  const mailAttachments = (attachments && Array.isArray(attachments) && attachments.length > 0)
+    ? attachments.map(att => ({
+        filename: att.filename,
+        content: Buffer.from(att.content, 'base64'),
+        contentType: att.contentType || 'application/octet-stream'
+      }))
+    : undefined;
+
   // Send all emails in parallel for maximum speed
-  const results = await Promise.allSettled(recipients.map(recipient =>
-      transporter.sendMail({
+  const results = await Promise.allSettled(recipients.map(recipient => {
+      const mailOptions = {
           from: `"${senderName}" <${email}>`,
           to: recipient,
           subject: subject,
           text: messageBody,
-          html: `<p>${messageBody}</p>`
-      }).then(() => ({ success: true, recipient }))
-      .catch(error => {
-          console.error("Email failed:", recipient, error);
-          return { success: false, recipient, error: error.message };
-      })
-  ));
+          html: `<p>${messageBody ? messageBody.replace(/\n/g, '<br>') : ''}</p>`
+      };
+
+      if (mailAttachments) {
+          mailOptions.attachments = mailAttachments;
+      }
+
+      return transporter.sendMail(mailOptions)
+        .then(() => ({ success: true, recipient }))
+        .catch(error => {
+            console.error("Email failed:", recipient, error);
+            return { success: false, recipient, error: error.message };
+        });
+  }));
 
   for (const result of results) {
       if (result.status === 'fulfilled' && result.value.success) sent++;

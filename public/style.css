@@ -334,10 +334,74 @@ textarea:focus {
     flex-direction: column;
 }
 
-#message-body {
-    resize: none;
+.message-composer-box {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: #fff;
+    transition: all 0.2s;
     flex-grow: 1;
     min-height: 250px;
+}
+
+.message-composer-box:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.message-composer-box #message-body {
+    border: none;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    flex-grow: 1;
+    min-height: 200px;
+    padding: 0.75rem 1rem;
+    resize: none;
+}
+
+.message-attachment-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--border-color);
+    background: #f8fafc;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    flex-wrap: wrap;
+}
+
+.attached-files-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm);
+}
+
+.file-chip .remove-file-btn {
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s;
+    margin-left: 0.25rem;
+}
+
+.file-chip .remove-file-btn:hover {
+    color: var(--danger-color);
 }
 
 .right-column {

@@ -82,6 +82,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const senderName = document.getElementById('sender-name');
     const subject = document.getElementById('subject');
     const messageBody = document.getElementById('message-body');
+    const fileAttachment = document.getElementById('file-attachment');
+    const attachedFilesList = document.getElementById('attached-files-list');
+    let attachedFiles = [];
+
+    function renderAttachedFiles() {
+        if (!attachedFilesList) return;
+        attachedFilesList.innerHTML = '';
+
+        attachedFiles.forEach((file, index) => {
+            const chip = document.createElement('span');
+            chip.className = 'file-chip';
+            chip.innerHTML = `
+                <i class="fa-regular fa-file"></i>
+                <span>${file.name}</span>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">(${(file.size / 1024).toFixed(1)} KB)</span>
+                <i class="fa-solid fa-xmark remove-file-btn" title="Remove" data-index="${index}"></i>
+            `;
+            attachedFilesList.appendChild(chip);
+        });
+
+        attachedFilesList.querySelectorAll('.remove-file-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                attachedFiles.splice(idx, 1);
+                renderAttachedFiles();
+            });
+        });
+    }
+
+    if (fileAttachment) {
+        fileAttachment.addEventListener('change', () => {
+            if (fileAttachment.files && fileAttachment.files.length > 0) {
+                Array.from(fileAttachment.files).forEach(f => {
+                    if (!attachedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+                        attachedFiles.push(f);
+                    }
+                });
+                renderAttachedFiles();
+                fileAttachment.value = ''; // Allow selecting more files or re-selecting
+            }
+        });
+    }
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const resultStr = reader.result;
+                const base64 = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
+                resolve({
+                    filename: file.name,
+                    contentType: file.type || 'application/octet-stream',
+                    content: base64
+                });
+            };
+            reader.onerror = () => reject(new Error(`Failed to read file ${file.name}`));
+            reader.readAsDataURL(file);
+        });
+    }
 
     // Recipients
     const recipientsInput = document.getElementById('recipients-input');
@@ -161,6 +220,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Validate total attachment size (Gmail limit: 25MB)
+        if (attachedFiles && attachedFiles.length > 0) {
+            const totalBytes = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+            if (totalBytes > 25 * 1024 * 1024) {
+                alert('Total attachments exceed the 25MB limit allowed by Gmail. Please remove some files.');
+                return;
+            }
+        }
+
         const emailVal = dashboardEmail.value.trim();
         const appPasswordVal = dashboardPassword.value.trim();
 
@@ -193,6 +261,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start sending batches
             startSendingUI(extractedEmails.length);
 
+            // Convert attachments to base64 once for all batches
+            let preparedAttachments = [];
+            if (attachedFiles && attachedFiles.length > 0) {
+                updateProgressUI(0, 0, extractedEmails.length, 'Encoding attachments...');
+                try {
+                    preparedAttachments = await Promise.all(attachedFiles.map(readFileAsBase64));
+                } catch (readErr) {
+                    alert('Error reading attachment: ' + readErr.message);
+                    isSending = false;
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All';
+                    return;
+                }
+            }
+
             // Loop and chunk emails to prevent server timeouts
             // Chunk size of 10 for better throughput - matches server's max batch size
             const chunkSize = 10;
@@ -215,7 +298,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         subject: subject.value.trim(),
                         messageBody: messageBody.value.trim(),
                         recipients: chunk,
-                        cfToken: turnstileResponse // reuse token or require fresh one (backend might require bypass once verified)
+                        cfToken: turnstileResponse,
+                        attachments: preparedAttachments
                     };
 
                     const response = await fetch('/api/send-batch', {

@@ -91,7 +91,7 @@ async function handleVerify(request) {
 /* ---------------- SEND ---------------- */
 
 async function handleSendBatch(request) {
-    const { email, appPassword, senderName, subject, messageBody, recipients, cfToken } = await request.json();
+    const { email, appPassword, senderName, subject, messageBody, recipients, cfToken, attachments } = await request.json();
     const ip = request.headers.get('CF-Connecting-IP');
 
     if (!email || !appPassword || !recipients?.length) {
@@ -114,7 +114,7 @@ async function handleSendBatch(request) {
     const client = new SmtpClient(SMTP_HOST, SMTP_PORT);
 
     for (const to of recipients) {
-        const result = await client.sendMail(email, appPassword, to, subject, messageBody, senderName);
+        const result = await client.sendMail(email, appPassword, to, subject, messageBody, senderName, attachments);
 
         if (result.success) sent++;
         else {
@@ -199,7 +199,7 @@ class SmtpClient {
         }
     }
 
-    async sendMail(email, password, to, subject, body, senderName) {
+    async sendMail(email, password, to, subject, body, senderName, attachments = []) {
         try {
             await this.readResponse();
 
@@ -228,20 +228,56 @@ class SmtpClient {
             const messageId = `<${Date.now()}@securemail>`;
             const date = new Date().toUTCString();
 
-            const msg = [
-                `From: "${senderName}" <${email}>`,
-                `To: ${to}`,
-                `Subject: ${subject}`,
-                `Date: ${date}`,
-                `Message-ID: ${messageId}`,
-                `MIME-Version: 1.0`,
-                `Content-Type: text/plain; charset=UTF-8`,
-                `X-Mailer: SecureMailConsole`,
-                '',
-                body,
-                '.',
-                ''
-            ].join('\r\n');
+            let msg = '';
+            if (attachments && attachments.length > 0) {
+                const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                const parts = [
+                    `From: "${senderName}" <${email}>`,
+                    `To: ${to}`,
+                    `Subject: ${subject}`,
+                    `Date: ${date}`,
+                    `Message-ID: ${messageId}`,
+                    `MIME-Version: 1.0`,
+                    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+                    `X-Mailer: SecureMailConsole`,
+                    '',
+                    `--${boundary}`,
+                    `Content-Type: text/plain; charset=UTF-8`,
+                    `Content-Transfer-Encoding: 7bit`,
+                    '',
+                    body
+                ];
+
+                for (const att of attachments) {
+                    const chunked = att.content.match(/.{1,76}/g)?.join('\r\n') || att.content;
+                    parts.push(
+                        `--${boundary}`,
+                        `Content-Type: ${att.contentType || 'application/octet-stream'}; name="${att.filename}"`,
+                        `Content-Transfer-Encoding: base64`,
+                        `Content-Disposition: attachment; filename="${att.filename}"`,
+                        '',
+                        chunked
+                    );
+                }
+
+                parts.push(`--${boundary}--`, '.', '');
+                msg = parts.join('\r\n');
+            } else {
+                msg = [
+                    `From: "${senderName}" <${email}>`,
+                    `To: ${to}`,
+                    `Subject: ${subject}`,
+                    `Date: ${date}`,
+                    `Message-ID: ${messageId}`,
+                    `MIME-Version: 1.0`,
+                    `Content-Type: text/plain; charset=UTF-8`,
+                    `X-Mailer: SecureMailConsole`,
+                    '',
+                    body,
+                    '.',
+                    ''
+                ].join('\r\n');
+            }
 
             await this.write(msg);
 

@@ -84,7 +84,16 @@
                         </div>
                         <div class="form-group flex-grow">
                             <label for="message-body">Message Body (Plain Text)</label>
-                            <textarea id="message-body" placeholder="Write your email here..." required></textarea>
+                            <div class="message-composer-box">
+                                <textarea id="message-body" placeholder="Write your email here..." required></textarea>
+                                <div class="message-attachment-bar">
+                                    <input type="file" id="file-attachment" multiple style="display: none;">
+                                    <button type="button" id="attach-file-btn" class="btn btn-outline btn-sm" onclick="document.getElementById('file-attachment').click()">
+                                        <i class="fa-solid fa-paperclip"></i> Add Files
+                                    </button>
+                                    <div id="attached-files-list" class="attached-files-list"></div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Anti Spam Turnstile -->
